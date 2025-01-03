@@ -12,7 +12,8 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Spinner
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.widget.addTextChangedListener
@@ -20,8 +21,12 @@ import androidx.preference.PreferenceManager
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import org.json.JSONArray
+import org.json.JSONObject
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import no.steffenhove.betongkalkulator.R
+import no.steffenhove.betongkalkulator.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -68,7 +73,8 @@ class MainActivity : AppCompatActivity() {
         val radioGroupSideAUnit = findViewById<RadioGroup>(R.id.radio_group_side_a_unit)
         val radioGroupSideBUnit = findViewById<RadioGroup>(R.id.radio_group_side_b_unit)
         val radioGroupSideCUnit = findViewById<RadioGroup>(R.id.radio_group_side_c_unit)
-        val radioGroupThicknessTriangleUnit = findViewById<RadioGroup>(R.id.radio_group_thickness_triangle_unit)
+        val radioGroupThicknessTriangleUnit =
+            findViewById<RadioGroup>(R.id.radio_group_thickness_triangle_unit)
 
         // Referanse til beregn-knappen
         val buttonCalculate = findViewById<Button>(R.id.button_calculate)
@@ -81,7 +87,9 @@ class MainActivity : AppCompatActivity() {
         val inputCustomDensity = findViewById<EditText>(R.id.input_custom_density)
 
         // Hent lagrede verdier fra SharedPreferences
-        val savedDensity = prefs.getString("density_preference", getString(R.string.betong))
+        val savedUnit = defaultPrefs.getString("unit_system_preference", "Metrisk")
+        val savedDensity =
+            prefs.getString("density_preference", getString(R.string.betong))
         val savedCustomDensity = prefs.getString("custom_density", "")
 
         // Sett standardvalg for tetthet
@@ -93,7 +101,8 @@ class MainActivity : AppCompatActivity() {
         densityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerDensity.adapter = densityAdapter
 
-        val densitySelectionIndex = resources.getStringArray(R.array.density_options).indexOf(savedDensity)
+        val densitySelectionIndex =
+            resources.getStringArray(R.array.density_options).indexOf(savedDensity)
         spinnerDensity.setSelection(densitySelectionIndex)
 
         // Vis/skjul egendefinert tetthet inputfelt basert på lagret valg
@@ -127,7 +136,12 @@ class MainActivity : AppCompatActivity() {
         )
         for (radioGroup in unitRadioGroups) {
             radioGroup.setOnCheckedChangeListener { _, _ ->
-                updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant)
+                updateResult(
+                    textResult,
+                    layoutKjerne,
+                    layoutFirkant,
+                    layoutTrekant
+                )
             }
         }
 
@@ -189,12 +203,15 @@ class MainActivity : AppCompatActivity() {
                 val height = inputHeight.text.toString().toDoubleOrNull()
 
                 if (diameter == null || height == null) {
-                    Toast.makeText(this, "Ugyldig inndata for Kjerne", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Ugyldig inndata for Kjerne", Toast.LENGTH_SHORT)
+                        .show()
                     return@setOnClickListener
                 }
 
-                val diameterInMeters = convertToMeters(diameter, radioGroupDiameterUnit.checkedRadioButtonId)
-                val heightInMeters = convertToMeters(height, radioGroupHeightUnit.checkedRadioButtonId)
+                val diameterInMeters =
+                    convertToMeters(diameter, radioGroupDiameterUnit.checkedRadioButtonId)
+                val heightInMeters =
+                    convertToMeters(height, radioGroupHeightUnit.checkedRadioButtonId)
 
                 val volume = calculateCylinderVolume(diameterInMeters, heightInMeters)
                 val weight = calculateWeight(volume)
@@ -243,9 +260,12 @@ class MainActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val lengthInMeters = convertToMeters(length, radioGroupLengthUnit.checkedRadioButtonId)
-                val widthInMeters = convertToMeters(width, radioGroupWidthUnit.checkedRadioButtonId)
-                val thicknessInMeters = convertToMeters(thickness, radioGroupThicknessUnit.checkedRadioButtonId)
+                val lengthInMeters =
+                    convertToMeters(length, radioGroupLengthUnit.checkedRadioButtonId)
+                val widthInMeters =
+                    convertToMeters(width, radioGroupWidthUnit.checkedRadioButtonId)
+                val thicknessInMeters =
+                    convertToMeters(thickness, radioGroupThicknessUnit.checkedRadioButtonId)
 
                 val volume =
                     calculateBoxVolume(lengthInMeters, widthInMeters, thicknessInMeters)
@@ -354,7 +374,7 @@ class MainActivity : AppCompatActivity() {
                 saveCalculationToHistory(volume, weight, "Trekant", dimensions)
             }
         }
-    } //Slutt på onCreate
+    } //Her er de to avsluttende krøllparantesene som manglet tidligere.
 
     // Funksjon for å konvertere mål til meter
     private fun convertToMeters(value: Double, unitGroupId: Int): Double {
@@ -421,13 +441,17 @@ class MainActivity : AppCompatActivity() {
 
     // Funksjon for å beregne vekt basert på volum og tetthet
     private fun calculateWeight(volume: Double): Double {
+        val density = when (findViewById<Spinner>(R.id.spinner_density).selectedItem.toString()) {
+            getString(R.string.leca) -> 1800.0
+            getString(R.string.custom_density) -> findViewById<EditText>(R.id.input_custom_density).text.toString().toDoubleOrNull() ?: 2400.0
+            else -> 2400.0 // Standard for betong
+        }
         return volume * density
     }
-
     private fun saveCalculationToHistory(volume: Double, weight: Double, shape: String, dimensions: String) {
         val prefs = getSharedPreferences("history", Context.MODE_PRIVATE)
         val editor = prefs.edit()
-        val currentHistory = prefs.getString("calculations", "[]") // Endret til å hente en JSON-array som en streng
+        val currentHistory = prefs.getString("calculations", "[]")
         val jsonArray = try {
             JSONArray(currentHistory)
         } catch (e: Exception) {
@@ -468,7 +492,6 @@ class MainActivity : AppCompatActivity() {
     }
     private fun updateResult(textResult: TextView, layoutKjerne: LinearLayout, layoutFirkant: LinearLayout, layoutTrekant: LinearLayout) {
         // Hent tetthet fra spinner eller egendefinert felt
-
         val density = when (findViewById<Spinner>(R.id.spinner_density).selectedItem.toString()) {
             getString(R.string.leca) -> 1800.0
             getString(R.string.custom_density) -> findViewById<EditText>(R.id.input_custom_density).text.toString().toDoubleOrNull() ?: 2400.0
