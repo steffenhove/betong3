@@ -12,7 +12,6 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
@@ -21,18 +20,18 @@ import androidx.preference.PreferenceManager
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import org.json.JSONArray
-import org.json.JSONObject
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import no.steffenhove.betongkalkulator.R
-import no.steffenhove.betongkalkulator.*
+import no.steffenhove.betongkalkulator.ui.FirkantInput
+import no.steffenhove.betongkalkulator.ui.KjerneInput
+import no.steffenhove.betongkalkulator.ui.TrekantInput
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var prefs: SharedPreferences
     private lateinit var defaultPrefs: SharedPreferences
-    private var density: Double = 2400.0 // Standardverdi for betong
+    private var density: Double = 2400.0
+    private var unitSystem: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         val layoutFirkant = findViewById<LinearLayout>(R.id.layout_firkant)
         val layoutTrekant = findViewById<LinearLayout>(R.id.layout_trekant)
 
-        // Referanse til inputfelt for Kjerne
+        // Referanser til inputfelt for Kjerne
         val inputDiameter = findViewById<EditText>(R.id.input_diameter)
         val inputHeight = findViewById<EditText>(R.id.input_height)
         val radioGroupDiameterUnit = findViewById<RadioGroup>(R.id.radio_group_diameter_unit)
@@ -87,9 +86,8 @@ class MainActivity : AppCompatActivity() {
         val inputCustomDensity = findViewById<EditText>(R.id.input_custom_density)
 
         // Hent lagrede verdier fra SharedPreferences
-        val savedUnit = defaultPrefs.getString("unit_system_preference", "Metrisk")
-        val savedDensity =
-            prefs.getString("density_preference", getString(R.string.betong))
+        unitSystem = defaultPrefs.getString("unit_system_preference", "Metrisk")
+        val savedDensity = prefs.getString("density_preference", getString(R.string.betong))
         val savedCustomDensity = prefs.getString("custom_density", "")
 
         // Sett standardvalg for tetthet
@@ -101,8 +99,7 @@ class MainActivity : AppCompatActivity() {
         densityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerDensity.adapter = densityAdapter
 
-        val densitySelectionIndex =
-            resources.getStringArray(R.array.density_options).indexOf(savedDensity)
+        val densitySelectionIndex = resources.getStringArray(R.array.density_options).indexOf(savedDensity)
         spinnerDensity.setSelection(densitySelectionIndex)
 
         // Vis/skjul egendefinert tetthet inputfelt basert på lagret valg
@@ -124,7 +121,9 @@ class MainActivity : AppCompatActivity() {
                     textResult,
                     layoutKjerne,
                     layoutFirkant,
-                    layoutTrekant
+                    layoutTrekant,
+                    spinnerDensity,
+                    inputCustomDensity
                 )
             }
         }
@@ -140,7 +139,9 @@ class MainActivity : AppCompatActivity() {
                     textResult,
                     layoutKjerne,
                     layoutFirkant,
-                    layoutTrekant
+                    layoutTrekant,
+                    spinnerDensity,
+                    inputCustomDensity
                 )
             }
         }
@@ -161,7 +162,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     inputCustomDensity.visibility = View.GONE
                 }
-                updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant)
+                updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant, spinnerDensity, inputCustomDensity)
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -172,22 +173,26 @@ class MainActivity : AppCompatActivity() {
             layoutKjerne.visibility = View.VISIBLE
             layoutFirkant.visibility = View.GONE
             layoutTrekant.visibility = View.GONE
-            updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant)
+            updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant, spinnerDensity, inputCustomDensity)
         }
 
         buttonFirkant.setOnClickListener {
             layoutKjerne.visibility = View.GONE
             layoutFirkant.visibility = View.VISIBLE
             layoutTrekant.visibility = View.GONE
-            updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant)
+            updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant, spinnerDensity, inputCustomDensity)
         }
 
         buttonTrekant.setOnClickListener {
             layoutKjerne.visibility = View.GONE
             layoutFirkant.visibility = View.GONE
             layoutTrekant.visibility = View.VISIBLE
-            updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant)
+            updateResult(textResult, layoutKjerne, layoutFirkant, layoutTrekant, spinnerDensity, inputCustomDensity)
         }
+
+        val kjerneInput = KjerneInput(inputDiameter, inputHeight, radioGroupDiameterUnit, radioGroupHeightUnit, textResult, defaultPrefs, this)
+        val firkantInput = FirkantInput(inputLength, inputWidth, inputThickness, radioGroupLengthUnit, radioGroupWidthUnit, radioGroupThicknessUnit, textResult, defaultPrefs, this)
+        val trekantInput = TrekantInput(inputSideA, inputSideB, inputSideC, inputThicknessTriangle, radioGroupSideAUnit, radioGroupSideBUnit, radioGroupSideCUnit, radioGroupThicknessTriangleUnit, textResult, defaultPrefs, this)
 
         buttonCalculate.setOnClickListener {
             // Hent tetthet fra spinner eller egendefinert felt
@@ -197,134 +202,105 @@ class MainActivity : AppCompatActivity() {
                     .toDoubleOrNull() ?: 2400.0
                 else -> 2400.0 // Standard for betong
             }
-            if (layoutKjerne.visibility == View.VISIBLE) {
-                // Kjerne-beregning
-                val diameter = inputDiameter.text.toString().toDoubleOrNull()
-                val height = inputHeight.text.toString().toDoubleOrNull()
 
-                if (diameter == null || height == null) {
-                    Toast.makeText(this, "Ugyldig inndata for Kjerne", Toast.LENGTH_SHORT)
-                        .show()
-                    return@setOnClickListener
+            when {
+                layoutKjerne.visibility == View.VISIBLE -> {
+                    kjerneInput.handleKjerneCalculation()
                 }
-
-                val diameterInMeters =
-                    convertToMeters(diameter, radioGroupDiameterUnit.checkedRadioButtonId)
-                val heightInMeters =
-                    convertToMeters(height, radioGroupHeightUnit.checkedRadioButtonId)
-
-                val volume = calculateCylinderVolume(diameterInMeters, heightInMeters)
-                val weight = calculateWeight(volume)
-
-                val resultText =
-                    String.format(Locale.ROOT, "Volum: %.2f m³\nVekt: %.0f kg", volume, weight)
-                textResult.text = resultText
-                if (weight >= 1000) {
-                    val weightInTons = weight / 1000
-                    textResult.append(String.format(Locale.ROOT, " (%.1f tonn)", weightInTons))
+                layoutFirkant.visibility == View.VISIBLE -> {
+                    firkantInput.handleFirkantCalculation()
                 }
+                layoutTrekant.visibility == View.VISIBLE -> {
+                    trekantInput.handleTrekantCalculation()
+                }
+            }
+        }
+    }
 
-                // Lagre beregningen til historikk
-                val unitSystem = defaultPrefs.getString("unit_system_preference", "Metrisk")
-                val dimensions = if (unitSystem == "Imperialsk") {
+    private fun updateResult(textResult: TextView, layoutKjerne: LinearLayout, layoutFirkant: LinearLayout, layoutTrekant: LinearLayout) {
+        // Hent tetthet fra spinner eller egendefinert felt
+        val density = when (findViewById<Spinner>(R.id.spinner_density).selectedItem.toString()) {
+            getString(R.string.leca) -> 1800.0
+            getString(R.string.custom_density) -> findViewById<EditText>(R.id.input_custom_density).text.toString().toDoubleOrNull() ?: 2400.0
+            else -> 2400.0 // Standard for betong
+        }
+
+        val unitSystem = defaultPrefs.getString("unit_system_preference", "Metrisk")
+
+        val resultText = when {
+            layoutKjerne.visibility == View.VISIBLE -> {
+                val diameter = findViewById<EditText>(R.id.input_diameter).text.toString().toDoubleOrNull()
+                val height = findViewById<EditText>(R.id.input_height).text.toString().toDoubleOrNull()
+                if (diameter != null && height != null) {
+                    val diameterInMeters = convertToMeters(diameter, R.id.radio_group_diameter_unit)
+                    val heightInMeters = convertToMeters(height, R.id.radio_group_height_unit)
+                    val volume = calculateCylinderVolume(diameterInMeters, heightInMeters)
+                    val weight = calculateWeight(volume)
+                    val unit = if (unitSystem == "Imperialsk") "tommer" else "cm"
                     String.format(
-                        "Diameter: %.1f tommer, Høyde: %.1f tommer",
+                        Locale.ROOT,
+                        "Volum: %.2f m³\nVekt: %.0f kg\nDiameter: %.0f %s\nHøyde: %.0f %s",
+                        volume,
+                        weight,
                         diameter,
-                        height
-                    )
-                } else {
-                    val diameterUnit =
-                        findViewById<RadioButton>(radioGroupDiameterUnit.checkedRadioButtonId).text.toString()
-                    val heightUnit =
-                        findViewById<RadioButton>(radioGroupHeightUnit.checkedRadioButtonId).text.toString()
-                    String.format(
-                        "Diameter: %.0f %s, Høyde: %.0f %s",
-                        diameter,
-                        diameterUnit,
+                        unit,
                         height,
-                        heightUnit
-                    )
-                }
-
-                saveCalculationToHistory(volume, weight, "Kjerne", dimensions)
-
-            } else if (layoutFirkant.visibility == View.VISIBLE) {
-                // Firkant-beregning
-                val length = inputLength.text.toString().toDoubleOrNull()
-                val width = inputWidth.text.toString().toDoubleOrNull()
-                val thickness = inputThickness.text.toString().toDoubleOrNull()
-
-                if (length == null || width == null || thickness == null) {
-                    Toast.makeText(this, "Ugyldig inndata for Firkant", Toast.LENGTH_SHORT)
-                        .show()
-                    return@setOnClickListener
-                }
-
-                val lengthInMeters =
-                    convertToMeters(length, radioGroupLengthUnit.checkedRadioButtonId)
-                val widthInMeters =
-                    convertToMeters(width, radioGroupWidthUnit.checkedRadioButtonId)
-                val thicknessInMeters =
-                    convertToMeters(thickness, radioGroupThicknessUnit.checkedRadioButtonId)
-
-                val volume =
-                    calculateBoxVolume(lengthInMeters, widthInMeters, thicknessInMeters)
-                val weight = calculateWeight(volume)
-
-                val resultText =
-                    String.format(Locale.ROOT, "Volum: %.2f m³\nVekt: %.0f kg", volume, weight)
-                textResult.text = resultText
-                if (weight >= 1000) {
-                    val weightInTons = weight / 1000
-                    textResult.append(
-                        String.format(
-                            Locale.ROOT,
-                            " (%.1f tonn)",
-                            weightInTons
-                        )
-                    )
-                }
-
-                // Lagre beregningen til historikk
-                val unitSystem = defaultPrefs.getString("unit_system_preference", "Metrisk")
-                val dimensions = if (unitSystem == "Imperialsk") {
-                    String.format(
-                        "Lengde: %.1f tommer, Bredde: %.1f tommer, Tykkelse: %.1f tommer",
-                        length,
-                        width,
-                        thickness
-                    )
+                        unit
+                    ) + if (weight >= 1000) String.format(
+                        Locale.ROOT,
+                        " (%.1f tonn)",
+                        weight / 1000
+                    ) else ""
                 } else {
-                    val lengthUnit = findViewById<RadioButton>(radioGroupLengthUnit.checkedRadioButtonId).text.toString()
-                    val widthUnit = findViewById<RadioButton>(radioGroupWidthUnit.checkedRadioButtonId).text.toString()
-                    val thicknessUnit = findViewById<RadioButton>(radioGroupThicknessUnit.checkedRadioButtonId).text.toString()
+                    ""
+                }
+            }
+
+            layoutFirkant.visibility == View.VISIBLE -> {
+                val length = findViewById<EditText>(R.id.input_length).text.toString().toDoubleOrNull()
+                val width = findViewById<EditText>(R.id.input_width).text.toString().toDoubleOrNull()
+                val thickness =
+                    findViewById<EditText>(R.id.input_thickness).text.toString().toDoubleOrNull()
+                if (length != null && width != null && thickness != null) {
+                    val lengthInMeters = convertToMeters(length, R.id.radio_group_length_unit)
+                    val widthInMeters = convertToMeters(width, R.id.radio_group_width_unit)
+                    val thicknessInMeters =
+                        convertToMeters(thickness, R.id.radio_group_thickness_unit)
+                    val volume =
+                        calculateBoxVolume(lengthInMeters, widthInMeters, thicknessInMeters)
+                    val weight = calculateWeight(volume)
+                    val unit = if (unitSystem == "Imperialsk") "tommer" else "cm"
                     String.format(
-                        "Lengde: %.0f %s, Bredde: %.0f %s, Tykkelse: %.0f %s",
+                        Locale.ROOT,
+                        "Volum: %.2f m³\nVekt: %.0f kg\nLengde: %.0f %s\nBredde: %.0f %s\nTykkelse: %.0f %s",
+                        volume,
+                        weight,
                         length,
-                        lengthUnit,
+                        unit,
                         width,
-                        widthUnit,
+                        unit,
                         thickness,
-                        thicknessUnit
-                    )
+                        unit
+                    ) + if (weight >= 1000) String.format(
+                        Locale.ROOT,
+                        " (%.1f tonn)",
+                        weight / 1000
+                    ) else ""
+                } else {
+                    ""
                 }
-                saveCalculationToHistory(volume, weight, "Firkant", dimensions)
+            }
 
-            } else if (layoutTrekant.visibility == View.VISIBLE) {
-                // Trekant-beregning
-                val sideA = inputSideA.text.toString().toDoubleOrNull()
-                val sideB = inputSideB.text.toString().toDoubleOrNull()
-                val sideC = inputSideC.text.toString().toDoubleOrNull()
-                val thickness = inputThicknessTriangle.text.toString().toDoubleOrNull()
-
-                if (sideA == null || sideB == null || sideC == null || thickness == null) {
-                    Toast.makeText(this, "Ugyldig inndata for Trekant", Toast.LENGTH_SHORT)
-                        .show()
-                    return@setOnClickListener
-                }
-
-                val sideAInMeters = convertToMeters(sideA, radioGroupSideAUnit.checkedRadioButtonId)
-                val sideBInMeters = convertToMeters(sideB, radioGroupSideBUnit.checkedRadioButtonId)
+            layoutTrekant.visibility == View.VISIBLE -> {
+                val sideA = findViewById<EditText>(R.id.input_side_a).text.toString().toDoubleOrNull()
+                val sideB = findViewById<EditText>(R.id.input_side_b).text.toString().toDoubleOrNull()
+                val sideC = findViewById<EditText>(R.id.input_side_c).text.toString().toDoubleOrNull()
+                val thickness =
+                    findViewById<EditText>(R.id.input_thickness_triangle).text.toString()
+                        .toDoubleOrNull()
+                if (sideA != null && sideB != null && sideC != null && thickness != null) {
+                    val sideAInMeters = convertToMeters(sideA, R.id.radio_group_side_a_unit)
+                   val sideBInMeters = convertToMeters(sideB, radioGroupSideBUnit.checkedRadioButtonId)
                 val sideCInMeters = convertToMeters(sideC, radioGroupSideCUnit.checkedRadioButtonId)
                 val thicknessInMeters = convertToMeters(thickness, radioGroupThicknessTriangleUnit.checkedRadioButtonId)
 
@@ -374,7 +350,7 @@ class MainActivity : AppCompatActivity() {
                 saveCalculationToHistory(volume, weight, "Trekant", dimensions)
             }
         }
-    } //Her er de to avsluttende krøllparantesene som manglet tidligere.
+    }
 
     // Funksjon for å konvertere mål til meter
     private fun convertToMeters(value: Double, unitGroupId: Int): Double {
@@ -451,7 +427,7 @@ class MainActivity : AppCompatActivity() {
     private fun saveCalculationToHistory(volume: Double, weight: Double, shape: String, dimensions: String) {
         val prefs = getSharedPreferences("history", Context.MODE_PRIVATE)
         val editor = prefs.edit()
-        val currentHistory = prefs.getString("calculations", "[]")
+        val currentHistory = prefs.getString("calculations", "[]") // Endret til å hente en JSON-array som en streng
         val jsonArray = try {
             JSONArray(currentHistory)
         } catch (e: Exception) {
