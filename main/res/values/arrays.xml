@@ -1,0 +1,37 @@
+<resources>
+    <!-- Enhetssystem valg -->
+    <string-array name="unit_system_options">
+        <item>Metrisk</item>
+        <item>Imperialsk</item>
+    </string-array>
+    <string-array name="unit_system_values">
+        <item>metric</item>
+        <item>imperial</item>
+    </string-array>
+
+    <!-- Vektenhet valg -->
+    <string-array name="weight_unit_options">
+        <item>Standard (følger enhetssystem)</item>
+        <item>Vis i kg</item>
+        <item>Vis i lbs</item>
+    </string-array>
+    <string-array name="weight_unit_values">
+        <item>default</item>
+        <item>kg</item>
+        <item>lbs</item>
+    </string-array>
+
+    <!-- Tetthet valg -->
+    <string-array name="density_options">
+        <item>Betong</item>
+        <item>Leca</item>
+        <item>Siporex</item>
+        <item>Egendefinert</item>
+    </string-array>
+    <string-array name="density_values">
+        <item>concrete</item>
+        <item>leca</item>
+        <item>siporex</item>
+        <item>custom</item>
+    </string-array>
+</resources>

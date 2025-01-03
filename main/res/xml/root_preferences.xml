@@ -1,0 +1,28 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Enhetssystem -->
+    <ListPreference
+        android:key="unit_system"
+        android:title="Enhetssystem"
+        android:summary="Velg mellom metrisk og imperialsk enhetssystem"
+        android:entries="@array/unit_system_options"
+        android:entryValues="@array/unit_system_values"
+        android:defaultValue="metric" />
+
+    <!-- Vektenhet -->
+    <ListPreference
+        android:key="weight_unit"
+        android:title="Vektenhet"
+        android:summary="Velg hvordan vekten skal vises"
+        android:entries="@array/weight_unit_options"
+        android:entryValues="@array/weight_unit_values"
+        android:defaultValue="default" />
+
+    <!-- Betongtype -->
+    <ListPreference
+        android:key="density_type"
+        android:title="Betongtype"
+        android:summary="Velg type betong"
+        android:entries="@array/density_options"
+        android:entryValues="@array/density_values"
+        android:defaultValue="concrete" />
+</PreferenceScreen>

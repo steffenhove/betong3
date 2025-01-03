@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Betongkalkulator</string>
+    <string name="result_format">Volum: %1$s m³\nVekt: %2$s</string>
+    <string name="clear_history">Tøm historikk</string>
+    <string name="calculate">Beregn</string>
+    <string name="history">Historikk</string>
+    <string name="settings">Innstillinger</string>
+    <string name="unit_system_title">Enhetssystem</string>
+
+    <string name="density_title">Tetthet</string>
+    <string name="custom_density_hint">Egendefinert tetthet</string>
+    <string name="kjerne">Kjerne</string>
+    <string name="firkant">Firkant</string>
+    <string name="trekant">Trekant</string>
+    <string name="diameter_hint">Diameter</string>
+    <string name="height_hint">Høyde</string>
+    <string name="length_hint">Lengde</string>
+    <string name="width_hint">Bredde</string>
+    <string name="thickness_hint">Tykkelse</string>
+    <string name="side_a_hint">Side A</string>
+    <string name="side_b_hint">Side B</string>
+    <string name="side_c_hint">Side C</string>
+    <string name="height_prism_hint">Høyde prisme</string>
+    <string name="betong">Betong</string>
+    <string name="leca">Leca</string>
+    <string name="siporex">Siporex</string>
+    <string name="egendefinert">Egendefinert</string>
+    <string name="kg_m3">kg/m³</string>
+    <string name="meter">Meter</string>
+    <string name="centimeter">Centimeter</string>
+    <string name="millimeter">Millimeter</string>
+    <string name="fot">Fot</string>
+    <string name="tomme">Tomme</string>
+    <string name="yard">Yard</string>
+    <string name="imperial">Imperial</string>
+    <string name="metrisk">Metrisk</string>
+</resources>
